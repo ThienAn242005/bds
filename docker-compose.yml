@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # Cấu hình cho Identity Service
+  identity-service:
+    build: ./identity-service
+    container_name: identity-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+  # Cấu hình DB
+  postgres-identity:
+      image: postgres:16-alpine
+      container_name: postgres-identity
+      ports:
+        - "5432:5432"
+      environment:
+        - POSTGRES_DB=identity_db
+        - POSTGRES_USER=admin
+        - POSTGRES_PASSWORD=admin
+
+  # Cấu hình cho Property Service (Sau khi bạn đã tạo xong module này)
+#  property-service:
+#    build: ./property-service
+#    container_name: property-service
+#    ports:
+#      - "8082:8082"
+#    environment:
+#      - SPRING_PROFILES_ACTIVE=docker
