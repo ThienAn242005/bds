@@ -1,5 +1,4 @@
-package com.homeverse.identity.model.json;
-
+package com.homeverse.customer.model.json;
 import lombok.Data;
 
 @Data

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.core.env.Environment;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -11,6 +12,7 @@ import java.net.UnknownHostException;
         "com.homeverse.identity",
         "com.homeverse.common"
 })
+@EnableFeignClients
 @Slf4j // Thêm cái này để dùng log.info, log.error...
 public class IdentityServiceApplication {
 

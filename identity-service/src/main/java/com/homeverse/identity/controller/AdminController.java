@@ -1,53 +1,41 @@
 package com.homeverse.identity.controller;
 
 import com.homeverse.common.dto.ApiResponse;
-import com.homeverse.identity.dto.request.ApproveRequestDTO;
-import com.homeverse.identity.dto.response.UserResponseDTO;
-import com.homeverse.identity.service.UserService;
+import com.homeverse.identity.service.AdminService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
-@RequestMapping("/admin/users") // Đổi route để phân biệt rõ ràng
+@RequestMapping("/admin/users")
 @RequiredArgsConstructor
+
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
-    private final UserService userService;
+    private final AdminService adminService;
 
-    // Lấy tất cả người dùng
-    @GetMapping
-    public ApiResponse<List<UserResponseDTO>> getAllUsers() {
-        return ApiResponse.<List<UserResponseDTO>>builder()
-                .result(userService.getAllUsers())
-                .build();
-    }
-
-    // Khóa/Mở khóa tài khoản
     @PutMapping("/{id}/status")
     public ApiResponse<String> toggleUserStatus(@PathVariable Long id) {
-        userService.toggleUserStatus(id);
+        adminService.toggleUserStatus(id);
         return ApiResponse.<String>builder()
-                .result("Đã thay đổi trạng thái tài khoản!")
+                .result("Đã thay đổi trạng thái hoạt động của tài khoản thành công.")
                 .build();
     }
 
-    // Duyệt hoặc Từ chối hồ sơ KYC
-    @PutMapping("/{id}/kyc")
-    public ApiResponse<String> approveKYC(@PathVariable Long id, @RequestBody ApproveRequestDTO dto) {
-        userService.approveKYC(id, dto);
+    @PutMapping("/{id}/promote")
+    public ApiResponse<String> promoteToAdmin(@PathVariable Long id) {
+        adminService.promoteToAdmin(id);
         return ApiResponse.<String>builder()
-                .result("Đã xử lý hồ sơ KYC!")
+                .result("Đã cấp quyền Quản trị viên (ADMIN) cho tài khoản này.")
                 .build();
     }
 
-    // Xóa người dùng vĩnh viễn
     @DeleteMapping("/{id}")
     public ApiResponse<String> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
+        adminService.deleteUser(id);
         return ApiResponse.<String>builder()
-                .result("Đã xóa tài khoản vĩnh viễn!")
+                .result("Đã xóa vĩnh viễn tài khoản khỏi hệ thống.")
                 .build();
     }
 }

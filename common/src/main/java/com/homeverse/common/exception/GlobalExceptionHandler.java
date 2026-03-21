@@ -1,54 +1,75 @@
 package com.homeverse.common.exception;
 
 import com.homeverse.common.dto.ApiResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
+@Slf4j // 🟢 Dùng để ghi log chuyên nghiệp
 public class GlobalExceptionHandler {
 
-    // Bắt các lỗi logic do chính bạn ném ra (Ví dụ: throw new AppException(ErrorCode.USER_EXISTED))
+    // 1. Bắt các lỗi nghiệp vụ do bạn chủ động ném ra
     @ExceptionHandler(value = AppException.class)
     public ResponseEntity<ApiResponse<Void>> handlingAppException(AppException exception) {
         ErrorCode errorCode = exception.getErrorCode();
-        ApiResponse<Void> apiResponse = new ApiResponse<>();
-        apiResponse.setCode(errorCode.getCode());
-        apiResponse.setMessage(errorCode.getMessage());
 
-        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
+        return ResponseEntity
+                .status(errorCode.getStatusCode())
+                .body(ApiResponse.<Void>builder()
+                        .code(errorCode.getCode())
+                        .message(errorCode.getMessage())
+                        .build());
     }
 
-    // Bắt lỗi Validation (khi dùng @Valid ở DTO)
+    // 2. 🔴 QUAN TRỌNG: Bắt lỗi phân quyền (Security Access Denied)
+    // Xảy ra khi Token hợp lệ nhưng Role không đủ quyền vào API
+    @ExceptionHandler(value = AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handlingAccessDeniedException(AccessDeniedException exception) {
+        ErrorCode errorCode = ErrorCode.UNAUTHORIZED; // Trả về 403 Forbidden
+
+        return ResponseEntity
+                .status(errorCode.getStatusCode())
+                .body(ApiResponse.<Void>builder()
+                        .code(errorCode.getCode())
+                        .message(errorCode.getMessage())
+                        .build());
+    }
+
+    // 3. Bắt lỗi Validation (Dữ liệu đầu vào sai định dạng)
     @ExceptionHandler(value = MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handlingValidation(MethodArgumentNotValidException exception) {
         String enumKey = exception.getFieldError().getDefaultMessage();
-        ErrorCode errorCode = ErrorCode.INVALID_REQUEST; // Giá trị mặc định
+        ErrorCode errorCode = ErrorCode.INVALID_REQUEST;
 
         try {
             errorCode = ErrorCode.valueOf(enumKey);
         } catch (IllegalArgumentException e) {
-            // Nếu không map được với Enum thì giữ nguyên INVALID_REQUEST
+            log.warn("Validation key '{}' chưa được định nghĩa trong Enum ErrorCode", enumKey);
         }
 
-        ApiResponse<Void> apiResponse = new ApiResponse<>();
-        apiResponse.setCode(errorCode.getCode());
-        apiResponse.setMessage(errorCode.getMessage());
-
-        return ResponseEntity.status(errorCode.getStatusCode()).body(apiResponse);
+        return ResponseEntity
+                .status(errorCode.getStatusCode())
+                .body(ApiResponse.<Void>builder()
+                        .code(errorCode.getCode())
+                        .message(errorCode.getMessage())
+                        .build());
     }
 
-    // Bắt tất cả các lỗi ngoại lệ rác khác (NullPointer, SQL Exception...)
+    // 4. "Cái lưới cuối cùng": Bắt tất cả lỗi hệ thống chưa lường trước được
     @ExceptionHandler(value = Exception.class)
     public ResponseEntity<ApiResponse<Void>> handlingRuntimeException(Exception exception) {
-        ApiResponse<Void> apiResponse = new ApiResponse<>();
-        apiResponse.setCode(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode());
-        apiResponse.setMessage(ErrorCode.UNCATEGORIZED_EXCEPTION.getMessage());
+        // 🟢 Ghi log chi tiết lỗi ra file/console để Dev vào kiểm tra
+        log.error("Hệ thống gặp lỗi nghiêm trọng: ", exception);
 
-        // Ghi log lỗi ra console để debug
-        exception.printStackTrace();
-
-        return ResponseEntity.status(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode()).body(apiResponse);
+        return ResponseEntity
+                .status(ErrorCode.UNCATEGORIZED_EXCEPTION.getStatusCode())
+                .body(ApiResponse.<Void>builder()
+                        .code(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode())
+                        .message(ErrorCode.UNCATEGORIZED_EXCEPTION.getMessage())
+                        .build());
     }
 }

@@ -1,33 +1,29 @@
 pipeline {
     agent any
 
-    // Định nghĩa các công cụ cần dùng
     tools {
-        maven 'maven-3.9.14' // Tên này phải TRÙNG với tên bạn đặt trong Jenkins Global Tool Configuration
+        maven 'maven-3.9.14'
     }
 
     stages {
-        stage('1. Build Artifact') {
+        stage('1. Build Artifacts') {
             steps {
-                echo 'Đang thực hiện Build Maven cho toàn bộ dự án HomeVerse...'
-                // Chạy lệnh build của Windows (dùng bat thay vì sh nếu Jenkins chạy trên Windows trực tiếp)
-                // Nhưng vì mình chạy Jenkins trong Docker (Linux), ta dùng sh
+                echo 'Dang thuc hien Build Maven cho toan bo du an...'
                 sh 'mvn clean install -DskipTests'
             }
         }
 
-        stage('2. Build & Tag Docker Image') {
+        stage('2. Build Docker Images') {
             steps {
-                echo 'Đang đóng gói Identity Service thành Docker Image...'
-                // Build image từ Dockerfile trong module identity-service
-                sh 'docker build -t homeverse-identity:latest ./identity-service'
+                echo 'Dang dong goi cac Services thanh Docker Image...'
+                sh 'docker-compose build'
             }
         }
 
-        stage('3. Run System') {
+        stage('3. Deploy and Run System') {
             steps {
-                echo 'Đang khởi chạy hệ thống bằng Docker Compose...'
-                // Chạy lệnh docker-compose để bật các service lên
+                echo 'Dang khoi chay toan bo he thong...'
+                sh 'docker-compose down'
                 sh 'docker-compose up -d'
             }
         }
@@ -35,10 +31,10 @@ pipeline {
 
     post {
         success {
-            echo 'Chúc mừng! Pipeline đã chạy thành công rực rỡ.'
+            echo 'Chuc mung! Pipeline da chay thanh cong ruc ro.'
         }
         failure {
-            echo 'Ôi hỏng rồi! Kiểm tra lại log để sửa lỗi nhé.'
+            echo 'Pipeline that bai! Kiem tra lai log nhe.'
         }
     }
 }

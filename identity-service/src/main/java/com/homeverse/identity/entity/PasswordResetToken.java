@@ -6,26 +6,24 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "password_reset_tokens")
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class PasswordResetToken {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, unique = true)
     private String token;
 
-    @OneToOne(targetEntity = User.class, fetch = FetchType.EAGER)
-    @JoinColumn(nullable = false, name = "user_id")
-    private User user;
+    // QUAN TRỌNG: Trỏ về UserCredential thay vì User cũ
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private UserCredential user;
 
     @Column(nullable = false)
     private LocalDateTime expiryDate;
 
     public boolean isExpired() {
-        return LocalDateTime.now().isAfter(expiryDate);
+        return LocalDateTime.now().isAfter(this.expiryDate);
     }
 }

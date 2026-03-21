@@ -31,34 +31,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
-        final String userEmail;
 
-        // Nếu không có token hoặc token không bắt đầu bằng Bearer thì cho đi tiếp (để bị chặn ở SecurityConfig)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Cắt bỏ chữ "Bearer " để lấy chuỗi token
         jwt = authHeader.substring(7);
-        userEmail = jwtUtils.extractUsername(jwt);
 
-        // Nếu lấy được email và hiện tại chưa được xác thực
-        if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+        // BỌC TRY-CATCH VÀO ĐÂY ĐỂ TRÁNH SẬP APP DO TOKEN RÁC
+        try {
+            String userEmail = jwtUtils.extractUsername(jwt);
 
-            // Kiểm tra token có hợp lệ với user này không
-            if (jwtUtils.isTokenValid(jwt, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                // Set trạng thái đã đăng nhập vào hệ thống
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+            if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                UserDetails userDetails = this.userDetailsService.loadUserByUsername(userEmail);
+
+                if (jwtUtils.isTokenValid(jwt, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (Exception e) {
+            System.err.println("Token gửi đến Identity-Service bị hỏng hoặc hết hạn: " + e.getMessage());
         }
+
         filterChain.doFilter(request, response);
     }
 }

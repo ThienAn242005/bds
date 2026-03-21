@@ -17,8 +17,7 @@ import java.util.function.Function;
 @Component
 public class JwtUtils {
 
-    // Nếu không có trong application.yml thì dùng giá trị mặc định này
-    @Value("${jwt.secret:HomeVerseSecretKeyLongEnoughForHS256Algorithm}")
+    @Value("${jwt.secret:DayLaMotDoanBaoMatRatDaiChoHeThongHomeVerseCuaBan2026DeDungChoThuatToanHS256}")
     private String secretKey;
 
     @Value("${jwt.expiration:86400000}")
@@ -37,12 +36,13 @@ public class JwtUtils {
         return claimsResolver.apply(claims);
     }
 
-    // Hàm này sẽ giải quyết lỗi của bạn
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> extraClaims = new HashMap<>();
-        // Nhúng Role vào token giống logic hệ thống cũ
+
+        // Lấy đúng 1 Role duy nhất ra (VD: "USER" hoặc "ADMIN")
         String role = userDetails.getAuthorities().iterator().next().getAuthority().replace("ROLE_", "");
         extraClaims.put("role", role);
+
         return generateToken(extraClaims, userDetails);
     }
 

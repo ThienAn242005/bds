@@ -1,5 +1,7 @@
-package com.homeverse.identity.security;
+package com.homeverse.identity.config;
 
+import com.homeverse.identity.security.JwtAuthenticationFilter;
+import com.homeverse.identity.security.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,15 +29,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // Tắt CSRF vì dùng JWT
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll() // Mở toang các API đăng nhập, đăng ký
-                        .requestMatchers("/admin/**").hasRole("ADMIN") // Chỉ Admin mới được vào các API bắt đầu bằng /admin
-                        .anyRequest().authenticated() // Tất cả các request khác (ví dụ /users/profile) đều phải có Token
+                        .requestMatchers("/auth/**","/error").permitAll() // Công khai toàn bộ API auth
+                        .anyRequest().authenticated()
                 )
-                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Không lưu session
+                .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class); // Đặt bộ lọc JWT lên trước
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -44,7 +45,6 @@ public class SecurityConfig {
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
-        // Khai báo công cụ mã hóa mật khẩu là BCrypt
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
