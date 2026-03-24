@@ -1,5 +1,7 @@
 package com.homeverse.identity.service.impl;
 
+import com.homeverse.common.exception.AppException; // SỬA Ở ĐÂY
+import com.homeverse.common.exception.ErrorCode;   // SỬA Ở ĐÂY
 import com.homeverse.identity.entity.UserCredential;
 import com.homeverse.identity.repository.UserCredentialRepository;
 import com.homeverse.identity.service.AdminService;
@@ -15,7 +17,7 @@ public class AdminServiceImpl implements AdminService {
 
     private UserCredential findUserById(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản với ID: " + userId));
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
     }
 
     @Override
@@ -25,7 +27,8 @@ public class AdminServiceImpl implements AdminService {
 
         // Cấm tự khóa tài khoản của chính mình (nếu cần bảo vệ)
         if (user.getRole() == UserCredential.Role.ADMIN) {
-            throw new RuntimeException("Không thể khóa tài khoản của Admin khác!");
+            // SỬA Ở ĐÂY: Có thể dùng UNAUTHORIZED hoặc thêm mã lỗi mới
+            throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
         // Đảo ngược trạng thái: Đang true thành false, đang false thành true
@@ -40,7 +43,6 @@ public class AdminServiceImpl implements AdminService {
         userRepository.delete(user);
 
         // TODO: Gửi message qua Kafka "USER_DELETED_EVENT"
-        // để các service khác (như customer-service) cũng xóa dữ liệu liên quan đi.
     }
 
     @Override

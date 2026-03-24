@@ -9,7 +9,7 @@ import org.hibernate.type.SqlTypes;
 import java.util.List;
 
 @Entity
-@Table(name = "customers")
+@Table(name = "user_credentials")
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class Customer extends BaseAuditEntity {
 

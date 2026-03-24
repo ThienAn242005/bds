@@ -5,21 +5,29 @@ spring:
   application:
     name: customer-service
   datasource:
-    # LỖI TẠI ĐÂY: Trong Docker không dùng 'localhost'
-    # Phải dùng tên service của Postgres trong docker-compose.yml (ví dụ: postgres-customer)
     url: jdbc:postgresql://postgres-customer:5432/customer_db
     username: postgres
     password: 123456
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
-      ddl-auto: create # Ép tạo lại bảng mỗi khi khởi động
+      ddl-auto: update
     show-sql: true
-    # THÊM DÒNG NÀY ĐỂ HIBERNATE BIẾT CÁCH NÓI CHUYỆN VỚI POSTGRES
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka:29092}
+    consumer:
+      group-id: customer-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
 
 jwt:
   secret: DayLaMotDoanBaoMatRatDaiChoHeThongHomeVerseCuaBan2026DeDungChoThuatToanHS256

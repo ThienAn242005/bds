@@ -65,9 +65,9 @@ public class CustomerServiceImpl implements CustomerService {
         Customer customer = getCurrentCustomer();
         customer.setCitizenId(dto.getCitizenId());
         customer.setCitizenImages(dto.getCitizenImages());
-        customer.setKycStatus("PENDING"); // Đổi trạng thái chờ Admin duyệt
+        customer.setKycStatus("PENDING");
         customerRepository.save(customer);
 
-        // TODO: Có thể tích hợp FPT.AI OCR ở đây nếu muốn duyệt tự động ngay lập tức
+
     }
 }

@@ -3,8 +3,11 @@ package com.homeverse.identity;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.core.env.Environment;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -12,6 +15,8 @@ import java.net.UnknownHostException;
         "com.homeverse.identity",
         "com.homeverse.common"
 })
+@EntityScan(basePackages = {"com.homeverse.identity.entity", "com.homeverse.common.entity"})
+@EnableJpaAuditing
 @EnableFeignClients
 @Slf4j // Thêm cái này để dùng log.info, log.error...
 public class IdentityServiceApplication {

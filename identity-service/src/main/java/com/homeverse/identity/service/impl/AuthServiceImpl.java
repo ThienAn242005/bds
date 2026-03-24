@@ -1,5 +1,8 @@
 package com.homeverse.identity.service.impl;
 
+import com.homeverse.common.exception.AppException; // SỬA Ở ĐÂY: Import AppException
+import com.homeverse.common.exception.ErrorCode;
+import org.springframework.security.authentication.DisabledException;
 import com.homeverse.identity.dto.request.*;
 import com.homeverse.identity.dto.response.*;
 import com.homeverse.identity.entity.PasswordResetToken;
@@ -11,6 +14,7 @@ import com.homeverse.identity.service.AuthService;
 import com.homeverse.identity.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException; // SỬA Ở ĐÂY
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -34,36 +38,48 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public UserResponseDTO register(UserRegisterDTO registerDTO) {
         if (userRepository.existsByEmail(registerDTO.getEmail())) {
-            throw new RuntimeException("Email này đã được sử dụng!");
+            // SỬA Ở ĐÂY: Dùng AppException + ErrorCode
+            throw new AppException(ErrorCode.USER_EXISTED);
         }
 
         UserCredential user = userMapper.toEntity(registerDTO);
         user.setPassword(passwordEncoder.encode(registerDTO.getPassword()));
-
-
         user.setRole(UserCredential.Role.USER);
 
         UserCredential savedUser = userRepository.save(user);
-
-        // TODO: Gọi API / Bắn Kafka báo cho customer-service khởi tạo Profile
 
         return userMapper.toResponse(savedUser);
     }
 
     @Override
     public AuthResponse login(LoginDTO loginDTO) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword())
-        );
-
+        try {
+            // 1. Spring Security tự động lo việc check Email và Password
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword())
+            );
+        } catch (BadCredentialsException e) {
+            throw new AppException(ErrorCode.PASSWORD_INCORRECT);
+        } catch (DisabledException e) {
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
+        }
+        // 2. Lấy thông tin User ra
         UserCredential user = userRepository.findByEmail(loginDTO.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                // SỬA Ở ĐÂY: Dùng AppException + ErrorCode
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         if (!user.isActive()) {
-            throw new RuntimeException("Tài khoản của bạn đã bị khóa!");
+            // SỬA Ở ĐÂY: Dùng AppException + ErrorCode
+            throw new AppException(ErrorCode.ACCOUNT_LOCKED);
         }
 
-        String token = jwtUtils.generateToken(user);
+        // 3. Đóng gói thêm userId
+        java.util.Map<String, Object> extraClaims = new java.util.HashMap<>();
+        extraClaims.put("userId", user.getId());
+
+        // 4. Sinh Token có chứa userId
+        String token = jwtUtils.generateToken(extraClaims, user);
+        // =======================
 
         return AuthResponse.builder()
                 .token(token)
@@ -73,11 +89,13 @@ public class AuthServiceImpl implements AuthService {
                 .role(user.getRole().name())
                 .build();
     }
+
     @Override
     @Transactional
     public void sendForgotPasswordEmail(String email) {
         UserCredential user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản với email này!"));
+                // SỬA Ở ĐÂY: Dùng AppException + ErrorCode
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // 1. Tạo một mã token ngẫu nhiên (UUID)
         String token = UUID.randomUUID().toString();
@@ -90,14 +108,12 @@ public class AuthServiceImpl implements AuthService {
                 .build();
         tokenRepository.save(resetToken);
 
-        // 3. Giả lập gửi Email (In ra Console để bạn dễ dàng test bằng Postman)
+        // 3. Giả lập gửi Email
         System.out.println("\n========================================================");
         System.out.println("HỆ THỐNG ĐANG GỬI EMAIL ĐẾN: " + email);
         System.out.println("Nội dung: Vui lòng sử dụng mã token sau để đặt lại mật khẩu:");
         System.out.println("MÃ TOKEN TEST: " + token);
         System.out.println("========================================================\n");
-
-        // TODO: Sau này tích hợp JavaMailSender thật vào đây
     }
 
     @Override
@@ -105,12 +121,14 @@ public class AuthServiceImpl implements AuthService {
     public void resetPassword(String token, String newPassword) {
         // 1. Tìm token trong Database
         PasswordResetToken resetToken = tokenRepository.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Mã xác nhận không hợp lệ hoặc không tồn tại!"));
+                // SỬA Ở ĐÂY: Thêm 1 ErrorCode mới hoặc dùng INVALID_REQUEST tạm
+                .orElseThrow(() -> new AppException(ErrorCode.INVALID_REQUEST)); // Tốt nhất nên thêm ErrorCode.INVALID_TOKEN
 
         // 2. Kiểm tra hạn sử dụng
         if (resetToken.isExpired()) {
             tokenRepository.delete(resetToken); // Xóa rác
-            throw new RuntimeException("Mã xác nhận đã hết hạn! Vui lòng yêu cầu gửi lại email.");
+            // SỬA Ở ĐÂY
+            throw new AppException(ErrorCode.INVALID_REQUEST); // Tốt nhất nên thêm ErrorCode.TOKEN_EXPIRED
         }
 
         // 3. Cập nhật mật khẩu mới cho User
@@ -121,17 +139,20 @@ public class AuthServiceImpl implements AuthService {
         // 4. Xóa token đi để không bị dùng lại lần 2
         tokenRepository.delete(resetToken);
     }
+
     @Override
     @Transactional
     public void changePassword(ChangePasswordRequest request) {
         // Lấy email của người đang đăng nhập từ Security Context (lấy từ JWT)
         String currentEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         UserCredential user = userRepository.findByEmail(currentEmail)
-                .orElseThrow(() -> new RuntimeException("Tài khoản không tồn tại"));
+                // SỬA Ở ĐÂY
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // Kiểm tra mật khẩu cũ có khớp không
         if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-            throw new RuntimeException("Mật khẩu cũ không chính xác!");
+            // SỬA Ở ĐÂY
+            throw new AppException(ErrorCode.PASSWORD_INCORRECT);
         }
 
         // Lưu mật khẩu mới
