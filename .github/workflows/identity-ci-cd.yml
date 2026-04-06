@@ -24,12 +24,16 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # Bước 3: CI - Chạy Test và Build file JAR
-      - name: Build with Maven (CI)
+      # Bước 3: CI - Build thằng COMMON trước, rồi mới tới IDENTITY
+      - name: Build Common and Identity (CI)
         run: |
-          cd identity-service
-          mvn clean package -DskipTests 
-          # Lưu ý: Trong thực tế sẽ chạy cả mvn test để check lỗi
+          # 1. Build và cài đặt thư viện Common vào máy ảo GitHub
+          cd common
+          mvn clean install -DskipTests
+          
+          # 2. Sau đó mới build Identity
+          cd ../identity-service
+          mvn clean package -DskipTests
 
       # Bước 4: Đăng nhập vào Docker Hub (Để chuẩn bị đẩy ảnh lên)
       - name: Login to Docker Hub
