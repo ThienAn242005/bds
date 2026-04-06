@@ -24,16 +24,16 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # Bước 3: CI - Build thằng COMMON trước, rồi mới tới IDENTITY
-      - name: Build Common and Identity (CI)
+     # Bước 3: CI - Build từ file POM tổng để nhận diện Parent và Common
+      - name: Build with Maven (CI)
         run: |
-          # 1. Build và cài đặt thư viện Common vào máy ảo GitHub
-          cd common
-          mvn clean install -DskipTests
+          # 1. Build và cài đặt Parent và các module dùng chung (như Common)
+          # Lệnh này sẽ quét toàn bộ dự án và cài đặt các phụ thuộc nội bộ
+          mvn clean install -DskipTests -am -pl identity-service
           
-          # 2. Sau đó mới build Identity
-          cd ../identity-service
-          mvn clean package -DskipTests
+          # Giải thích các tham số:
+          # -am (also-make): Tự động build luôn các dự án mà identity-service cần (là common và parent)
+          # -pl (project-list): Chỉ định mục tiêu cuối cùng là identity-service
 
       # Bước 4: Đăng nhập vào Docker Hub (Để chuẩn bị đẩy ảnh lên)
       - name: Login to Docker Hub
