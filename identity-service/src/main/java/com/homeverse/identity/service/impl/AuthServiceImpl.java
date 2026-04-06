@@ -217,7 +217,6 @@ public class AuthServiceImpl implements AuthService {
         user.setEmail(request.getNewEmail());
         userRepository.save(user);
     }
-}
    @Override
 public AuthResponse generateTokenForOAuth2(String email) {
     // Tìm trong DB
