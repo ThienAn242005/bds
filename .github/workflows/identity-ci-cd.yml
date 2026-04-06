@@ -1,22 +1,19 @@
 name: Identity Service CI/CD
 
-# 1. KHI NÀO CHẠY?
 on:
   push:
-    branches: [ main ] # Chạy khi push vào branch main
+    branches: [ main ]
     paths:
-      - 'identity-service/**' # CHỈ CHẠY khi có thay đổi trong thư mục identity-service
+      - 'identity-service/**'
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest # Chạy trên máy ảo Linux của GitHub
+    runs-on: ubuntu-latest
 
     steps:
-      # Bước 1: Lấy code từ GitHub về máy ảo
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Bước 2: Cài đặt Java 21 (Giống môi trường của bạn)
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -24,29 +21,20 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-     # Bước 3: CI - Build từ file POM tổng để nhận diện Parent và Common
       - name: Build with Maven (CI)
         run: |
-          # 1. Build và cài đặt Parent và các module dùng chung (như Common)
-          # Lệnh này sẽ quét toàn bộ dự án và cài đặt các phụ thuộc nội bộ
           mvn clean install -DskipTests -am -pl identity-service
-          
-          # Giải thích các tham số:
-          # -am (also-make): Tự động build luôn các dự án mà identity-service cần (là common và parent)
-          # -pl (project-list): Chỉ định mục tiêu cuối cùng là identity-service
 
-      # Bước 4: Đăng nhập vào Docker Hub (Để chuẩn bị đẩy ảnh lên)
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: thinanz242005
-          password: dckr_pat_FOzoAjtLzhHjCKBMQef5mUG2z-4
+          # Dùng biến để GitHub tự lấy từ Settings, không dán code trực tiếp
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Bước 5: CD - Build Docker Image và Push lên Docker Hub
       - name: Build and Push Docker Image (CD)
         uses: docker/build-push-action@v5
         with:
           context: ./identity-service
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/homeverse-identity:latest
-          # Trigger Robot 2026
