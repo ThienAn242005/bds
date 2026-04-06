@@ -29,6 +29,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
+        
+        String path = request.getServletPath();
+        if (path.contains("/auth/") || path.contains("/oauth2/") || path.contains("/login/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         final String authHeader = request.getHeader("Authorization");
         final String jwt;
 
@@ -39,7 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         jwt = authHeader.substring(7);
 
-        // BỌC TRY-CATCH VÀO ĐÂY ĐỂ TRÁNH SẬP APP DO TOKEN RÁC
+
         try {
             String userEmail = jwtUtils.extractUsername(jwt);
 
@@ -57,7 +64,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Token gửi đến Identity-Service bị hỏng hoặc hết hạn: " + e.getMessage());
+
+            // Log silent error to avoid breaking the filter chain
         }
 
         filterChain.doFilter(request, response);
