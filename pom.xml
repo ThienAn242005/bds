@@ -23,6 +23,7 @@
         <module>customer-service</module>
         <module>media-service</module>
         <module>notification-service</module>
+        <module>payment-service</module>
     </modules>
 
     <properties>

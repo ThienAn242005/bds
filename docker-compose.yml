@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # 0. KAFKA, ZOOKEEPER & DEBEZIUM
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     container_name: zookeeper
@@ -25,8 +24,6 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     networks:
       - homeverse-network
 
@@ -46,7 +43,7 @@ services:
     env_file:
       - .env
     environment:
-      BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      BOOTSTRAP_SERVERS: kafka:29092
       GROUP_ID: 1
       CONFIG_STORAGE_TOPIC: connect_configs
       OFFSET_STORAGE_TOPIC: connect_offsets
@@ -62,7 +59,6 @@ services:
     networks:
       - homeverse-network
 
-  # 1. DATABASE
   postgres-identity:
     image: postgres:16-alpine
     container_name: postgres-identity
@@ -106,7 +102,20 @@ services:
     volumes:
       - notification-db-data:/var/lib/postgresql/data
 
-  # 2. MICROSERVICES
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: postgres-payment
+    ports:
+      - "${POSTGRES_PAYMENT_PORT:-5436}:5432"
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    networks:
+      - homeverse-network
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+
   identity-service:
     build:
       context: ./identity-service
@@ -121,11 +130,7 @@ services:
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-identity:5432/identity_db
-      - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=123456
-      # THÊM 2 DÒNG DƯỚI ĐÂY ĐỂ KÍCH HOẠT OAUTH2 GOOGLE
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
     networks:
       - homeverse-network
 
@@ -142,7 +147,11 @@ services:
     env_file:
       - .env
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-customer:5432/customer_db
+      - CUSTOMER_DB_HOST=postgres-customer
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - MEDIA_SERVICE_URL=http://media-service:8084
     networks:
       - homeverse-network
 
@@ -172,11 +181,30 @@ services:
     env_file:
       - .env
     environment:
-      SPRING_PROFILES_ACTIVE: docker
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-notification:5432/notification_db
     networks:
       - homeverse-network
 
-  # 3. NGINX
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    container_name: payment-service
+    ports:
+      - "8086:8086"
+    depends_on:
+      - kafka
+      - postgres-payment
+    env_file:
+      - .env
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-payment:5432/payment_db
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    networks:
+      - homeverse-network
+
   nginx-proxy:
     image: nginx:alpine
     container_name: nginx-proxy
@@ -187,6 +215,7 @@ services:
     depends_on:
       - identity-service
       - customer-service
+      - payment-service
     networks:
       - homeverse-network
 
@@ -198,3 +227,4 @@ volumes:
   identity-db-data-v2:
   customer-db-data:
   notification-db-data:
+  payment-db-data:
